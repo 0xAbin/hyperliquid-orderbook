@@ -1,5 +1,8 @@
+import { webSocketConnection } from "./jobs/statsFetcher";
+
 const main = async () => {
     console.log('HL');
+    webSocketConnection()
 }
 
 main().catch((error) => {
