@@ -7,4 +7,4 @@ const main = async () => {
 
 main().catch((error) => {
     console.error('Error starting getting data', error);
-  });
+  }); 
