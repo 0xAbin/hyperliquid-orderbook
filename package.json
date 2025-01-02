@@ -1,0 +1,23 @@
+{
+  "name": "hyperliquid-orderbook",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "ts-node src/index.ts"
+  },
+  "keywords": [],
+  "author": "0xabin",
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "^22.10.2",
+    "dotenv": "^16.4.7",
+    "typescript": "^5.7.2",
+    "ws": "^8.18.0"
+  },
+  "packageManager": "pnpm@9.13.0+sha512.beb9e2a803db336c10c9af682b58ad7181ca0fbd0d4119f2b33d5f2582e96d6c0d93c85b23869295b765170fbdaa92890c0da6ada457415039769edf3c959efe",
+  "devDependencies": {
+    "@types/ws": "^8.5.13"
+  }
+}
