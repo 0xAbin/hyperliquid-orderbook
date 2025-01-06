@@ -6,7 +6,7 @@ export const webSocketConnection = async () => {
   const WSS = "wss://api-ui.hyperliquid.xyz/ws";
   const ws = new WebSocket(WSS);
 
-  const MAX_DISPLAY_ROWS = 10; // u can udpated the rows to show 
+  const MAX_DISPLAY_ROWS = 20; // u can udpated the rows to show
 
   const fetchTokenData = async (coin: string) => {
     try {
@@ -22,7 +22,8 @@ export const webSocketConnection = async () => {
 
       if (tokenIndex !== -1) {
         const tokenData = assetContexts[tokenIndex];
-        const { oraclePx, markPx, funding, openInterest, dayNtlVlm } = tokenData;
+        const { oraclePx, markPx, funding, openInterest, dayNtlVlm } =
+          tokenData;
         const requestTime = new Date().toLocaleString();
 
         return {
@@ -62,18 +63,27 @@ export const webSocketConnection = async () => {
         const coinStats = await fetchTokenData(coin);
 
         console.clear();
-        console.log("====== ORDER BOOK ======||====== COIN STATS ======||====== TRADES ======\n");
+        console.log(
+          "====== ORDER BOOK ======||====== COIN STATS ======||====== TRADES ======\n"
+        );
 
         // Format Order Book
         let orderBookString = "Order Book:\n";
-        orderBookString += `Coin: ${coin} | Last Update: ${new Date(time).toLocaleString()}\n`;
+        orderBookString += `Coin: ${coin} | Last Update: ${new Date(
+          time
+        ).toLocaleString()}\n`;
         orderBookString += "Asks (Sell Orders):\n";
         orderBookString += "Price (USDT)     Size (BTC)     Sum (BTC)\n";
         let askSum = 0;
-        asks.slice(0, MAX_DISPLAY_ROWS).reverse().forEach((ask: any) => {
-          askSum += parseFloat(ask.sz);
-          orderBookString += `${ask.px.padStart(12)}    ${ask.sz.padStart(10)}    ${askSum.toFixed(4).padStart(10)}\n`;
-        });
+        asks
+          .slice(0, MAX_DISPLAY_ROWS)
+          .reverse()
+          .forEach((ask: any) => {
+            askSum += parseFloat(ask.sz);
+            orderBookString += `${ask.px.padStart(12)}    ${ask.sz.padStart(
+              10
+            )}    ${askSum.toFixed(4).padStart(10)}\n`;
+          });
         if (asks.length > MAX_DISPLAY_ROWS) {
           orderBookString += "... (more Asks not displayed)\n";
         }
@@ -81,9 +91,11 @@ export const webSocketConnection = async () => {
         orderBookString += "\nBids (Buy Orders):\n";
         orderBookString += "Price (USDT)     Size (BTC)     Sum (BTC)\n";
         let bidSum = 0;
-        bids.slice(0, MAX_DISPLAY_ROWS).reverse().forEach((bid: any) => {
+        bids.slice(0, MAX_DISPLAY_ROWS).forEach((bid: any) => {
           bidSum += parseFloat(bid.sz);
-          orderBookString += `${bid.px.padStart(12)}    ${bid.sz.padStart(10)}    ${bidSum.toFixed(4).padStart(10)}\n`;
+          orderBookString += `${bid.px.padStart(12)}    ${bid.sz.padStart(
+            10
+          )}    ${bidSum.toFixed(4).padStart(10)}\n`;
         });
         if (bids.length > MAX_DISPLAY_ROWS) {
           orderBookString += "... (more Bids not displayed)\n";
@@ -129,4 +141,3 @@ export const webSocketConnection = async () => {
     console.log("WebSocket connection closed.");
   });
 };
-
