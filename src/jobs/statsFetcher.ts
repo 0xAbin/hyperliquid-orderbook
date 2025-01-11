@@ -1,12 +1,45 @@
 import WebSocket from "ws";
 import axios from "axios";
+import fs from "fs";
+import { createObjectCsvWriter } from "csv-writer";
 import { tradesWS, orderBookWS } from "../utils/wsData";
+
+const csvFilePath = "hyperliquid_orderbook.csv";
 
 export const webSocketConnection = async () => {
   const WSS = "wss://api-ui.hyperliquid.xyz/ws";
   const ws = new WebSocket(WSS);
 
-  const MAX_DISPLAY_ROWS = 20; // u can udpated the rows to show
+  const MAX_LVL_EXPORT = 10; 
+
+  const headers = [
+    "Last Update",
+    "Coin",
+    ...Array.from({ length: MAX_LVL_EXPORT }, (_, i) => `Ask L${i + 1} Price`),
+    ...Array.from({ length: MAX_LVL_EXPORT }, (_, i) => `Ask L${i + 1} Size`),
+    ...Array.from({ length: MAX_LVL_EXPORT }, (_, i) => `Ask L${i + 1} Cumulative BTC`),
+    ...Array.from({ length: MAX_LVL_EXPORT }, (_, i) => `Bid L${i + 1} Price`),
+    ...Array.from({ length: MAX_LVL_EXPORT }, (_, i) => `Bid L${i + 1} Size`),
+    ...Array.from({ length: MAX_LVL_EXPORT }, (_, i) => `Bid L${i + 1} Cumulative BTC`),
+    "Mark Price",
+    "Oracle Price",
+    "Funding Rate",
+    "Open Interest",
+    "24h Volume",
+    "Trade Side",
+    "Trade Price",
+    "Trade Size",
+  ];
+
+  const csvWriter = createObjectCsvWriter({
+    path: csvFilePath,
+    header: headers.map((title) => ({ id: title, title })),
+    append: true,
+  });
+
+  if (!fs.existsSync(csvFilePath)) {
+    fs.writeFileSync(csvFilePath, headers.join(",") + "\n");
+  }
 
   const fetchTokenData = async (coin: string) => {
     try {
@@ -24,8 +57,6 @@ export const webSocketConnection = async () => {
         const tokenData = assetContexts[tokenIndex];
         const { oraclePx, markPx, funding, openInterest, dayNtlVlm } =
           tokenData;
-        const requestTime = new Date().toLocaleString();
-
         return {
           coin,
           oraclePx,
@@ -33,7 +64,6 @@ export const webSocketConnection = async () => {
           funding,
           openInterest,
           dayNtlVlm,
-          requestTime,
         };
       } else {
         console.error(`Token ${coin} not found in the universe data.`);
@@ -58,63 +88,48 @@ export const webSocketConnection = async () => {
       if (parsedData.channel === "l2Book") {
         const { levels, coin, time } = parsedData.data;
 
-        const bids = levels[0];
-        const asks = levels[1];
+        const bids = levels[0].slice(0, MAX_LVL_EXPORT);
+        const asks = levels[1].slice(0, MAX_LVL_EXPORT);
+
         const coinStats = await fetchTokenData(coin);
 
-        console.clear();
-        console.log(
-          "====== ORDER BOOK ======||====== COIN STATS ======||====== TRADES ======\n"
-        );
-
-        // Format Order Book
-        let orderBookString = "Order Book:\n";
-        orderBookString += `Coin: ${coin} | Last Update: ${new Date(
-          time
-        ).toLocaleString()}\n`;
-        orderBookString += "Asks (Sell Orders):\n";
-        orderBookString += "Price (USDT)     Size (BTC)     Sum (BTC)\n";
         let askSum = 0;
-        asks
-          .slice(0, MAX_DISPLAY_ROWS)
-          .reverse()
-          .forEach((ask: any) => {
-            askSum += parseFloat(ask.sz);
-            orderBookString += `${ask.px.padStart(12)}    ${ask.sz.padStart(
-              10
-            )}    ${askSum.toFixed(4).padStart(10)}\n`;
-          });
-        if (asks.length > MAX_DISPLAY_ROWS) {
-          orderBookString += "... (more Asks not displayed)\n";
-        }
-
-        orderBookString += "\nBids (Buy Orders):\n";
-        orderBookString += "Price (USDT)     Size (BTC)     Sum (BTC)\n";
         let bidSum = 0;
-        bids.slice(0, MAX_DISPLAY_ROWS).forEach((bid: any) => {
-          bidSum += parseFloat(bid.sz);
-          orderBookString += `${bid.px.padStart(12)}    ${bid.sz.padStart(
-            10
-          )}    ${bidSum.toFixed(4).padStart(10)}\n`;
-        });
-        if (bids.length > MAX_DISPLAY_ROWS) {
-          orderBookString += "... (more Bids not displayed)\n";
-        }
 
-        // Format Coin Stats
-        let coinStatsString = "\n====== COIN STATS ======\n";
-        if (coinStats) {
-          coinStatsString += `Coin: ${coinStats.coin}\n`;
-          coinStatsString += `Oracle Price: ${coinStats.oraclePx}\n`;
-          coinStatsString += `Mark Price: ${coinStats.markPx}\n`;
-          coinStatsString += `Funding Rate: ${coinStats.funding}\n`;
-          coinStatsString += `Open Interest: ${coinStats.openInterest}\n`;
-          coinStatsString += `24h Volume: ${coinStats.dayNtlVlm}\n`;
-          coinStatsString += `Request Time: ${coinStats.requestTime}\n`;
-        }
+        const orderBookEntry = {
+          "Last Update": new Date(time).toLocaleString(),
+          Coin: coin,
+          ...Object.fromEntries(
+            asks.flatMap((ask: any, i: number) => {
+              askSum += parseFloat(ask.sz);
+              return [
+                [`Ask L${i + 1} Price`, ask.px],
+                [`Ask L${i + 1} Size`, ask.sz],
+                [`Ask L${i + 1} Cumulative BTC`, askSum.toFixed(4)],
+              ];
+            })
+          ),
+          ...Object.fromEntries(
+            bids.flatMap((bid: any, i: number) => {
+              bidSum += parseFloat(bid.sz);
+              return [
+                [`Bid L${i + 1} Price`, bid.px],
+                [`Bid L${i + 1} Size`, bid.sz],
+                [`Bid L${i + 1} Cumulative BTC`, bidSum.toFixed(4)],
+              ];
+            })
+          ),
+          "Mark Price": coinStats?.markPx || "",
+          "Oracle Price": coinStats?.oraclePx || "",
+          "Funding Rate": coinStats?.funding || "",
+          "Open Interest": coinStats?.openInterest || "",
+          "24h Volume": coinStats?.dayNtlVlm || "",
+          "Trade Side": "",
+          "Trade Price": "",
+          "Trade Size": "",
+        };
 
-        // Print Order Book and Coin Stats
-        console.log(orderBookString + coinStatsString);
+        await csvWriter.writeRecords([orderBookEntry]);
       }
 
       if (parsedData.channel === "trades") {
@@ -123,10 +138,30 @@ export const webSocketConnection = async () => {
         const tradeTime = new Date(time).toLocaleString();
         const sideLabel = side === "B" ? "Buy (Bid)" : "Sell (Ask)";
 
-        // Trades formatted inline
-        console.log(
-          `\n====== TRADES ======\nCoin: ${coin} | Side: ${sideLabel} | Price: ${px} | Size: ${sz} | Time: ${tradeTime}\n`
-        );
+        const tradeEntry = {
+          "Last Update": tradeTime,
+          Coin: coin,
+          ...Object.fromEntries(
+            Array.from({ length: MAX_LVL_EXPORT }, (_, i) => [
+              [`Ask L${i + 1} Price`, ""],
+              [`Ask L${i + 1} Size`, ""],
+              [`Ask L${i + 1} Cumulative BTC`, ""],
+              [`Bid L${i + 1} Price`, ""],
+              [`Bid L${i + 1} Size`, ""],
+              [`Bid L${i + 1} Cumulative BTC`, ""],
+            ])
+          ),
+          "Mark Price": "",
+          "Oracle Price": "",
+          "Funding Rate": "",
+          "Open Interest": "",
+          "24h Volume": "",
+          "Trade Side": sideLabel,
+          "Trade Price": px,
+          "Trade Size": sz,
+        };
+
+        await csvWriter.writeRecords([tradeEntry]);
       }
     } catch (err) {
       console.error("Failed to parse message:", data, err);
